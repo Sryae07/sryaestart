@@ -459,7 +459,7 @@
       setState(
         "busy",
         attempt === 1 ? "正在连接你的看板…" : "正在重试连接（第 " + attempt + " 次）",
-        FIXED_BASE ? "正在连接 dash.sryae07.dpdns.org · 网络较慢时最长约 12 秒" : "正在解析最新服务器地址"
+        FIXED_BASE ? "正在连接固定地址 · 最长约 12 秒" : "正在解析最新服务器地址"
       );
 
       /* 顺带拉 current-server.json：里面有局域网地址就把「秒开」按钮亮出来 */
