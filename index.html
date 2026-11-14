@@ -22,6 +22,13 @@
   html { -webkit-text-size-adjust: 100%; background: #05070f; }
   *, *::before, *::after { box-sizing: border-box; }
 
+  /* 边缘流光 Border Beam（01）：用 @property 让渐变角度可插值，光才会沿描边跑起来 */
+  @property --beam-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
@@ -34,10 +41,11 @@
       max(20px, env(safe-area-inset-bottom))
       max(16px, env(safe-area-inset-left));
     overflow-x: hidden;
-    background: #05070f;
+    /* 底色只留在 html 上：body 再铺一层不透明底会把 .bg/.grid/.stars（z-index 负值）盖死 */
+    background: transparent;
     color: #e2e8f0;
-    font-family: "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC",
-                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system,
+                 "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -48,11 +56,30 @@
     inset: 0;
     z-index: -2;
     pointer-events: none;
+    transform-origin: 50% 40%;
+    animation: breathe 26s ease-in-out infinite alternate;
+    will-change: transform;
     background:
       radial-gradient(34vmax 34vmax at 4% -10%, rgba(139, 92, 246, .30), transparent 62%),
       radial-gradient(38vmax 38vmax at 108% 110%, rgba(34, 211, 238, .22), transparent 62%),
       radial-gradient(70vmax 44vmax at 50% -20%, rgba(99, 102, 241, .14), transparent 70%),
       radial-gradient(70vmax 70vmax at 50% 130%, rgba(76, 29, 149, .18), transparent 72%);
+  }
+  @keyframes breathe {
+    from { transform: scale(1) translateY(0); }
+    to   { transform: scale(1.07) translateY(-1.5%); }
+  }
+
+  /* 点阵：给空旷的页面一点结构感，离卡片越远越淡（纯 background，零额外请求） */
+  .grid {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(148, 163, 184, .20) 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-mask-image: radial-gradient(58% 48% at 50% 45%, #000 0%, transparent 88%);
+    mask-image: radial-gradient(58% 48% at 50% 45%, #000 0%, transparent 88%);
   }
 
   /* 星点：平铺渐变，替代 1100px 宽的 box-shadow 星带（手机上大半在视口外） */
@@ -61,7 +88,7 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    opacity: .9;
+    opacity: .6;
     background-image:
       radial-gradient(1.4px 1.4px at 24px 32px, #fff, transparent 100%),
       radial-gradient(1px 1px at 132px 84px, rgba(255, 255, 255, .85), transparent 100%),
@@ -78,20 +105,50 @@
     position: relative;
     width: 100%;
     max-width: 420px;
-    padding: clamp(26px, 7vw, 36px) clamp(20px, 6vw, 32px);
+    padding: clamp(28px, 7vw, 38px) clamp(20px, 6vw, 32px);
     text-align: center;
-    border: 1px solid rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .09);
     border-radius: 26px;
-    background: linear-gradient(180deg, rgba(24, 28, 46, .82), rgba(10, 13, 24, .88));
+    /* 聚光 Spotlight（02）：高光跟指针走，写成背景层就不会盖住文字 */
+    --mx: 50%;
+    --my: -25%;
+    background:
+      radial-gradient(320px circle at var(--mx) var(--my), rgba(167, 139, 250, .18), transparent 70%),
+      linear-gradient(180deg, rgba(24, 28, 46, .82), rgba(10, 13, 24, .9));
     box-shadow:
       0 30px 70px -30px rgba(0, 0, 0, .95),
       inset 0 1px 0 rgba(255, 255, 255, .07);
-    animation: enter .6s cubic-bezier(.22, 1, .36, 1) both;
+    animation: enter .62s cubic-bezier(.22, 1, .36, 1) both;
   }
   @keyframes enter {
     from { opacity: 0; transform: translateY(10px) scale(.985); }
     to   { opacity: 1; transform: none; }
   }
+
+  /* 一圈光沿卡片描边循环跑，亮度克制，只勾边不抢内容 */
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--beam-angle),
+      transparent 0deg,
+      transparent 205deg,
+      rgba(167, 139, 250, 0) 235deg,
+      rgba(167, 139, 250, .85) 300deg,
+      rgba(34, 211, 238, .9) 338deg,
+      transparent 360deg
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    animation: beam 7s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes beam { to { --beam-angle: 360deg; } }
 
   .logo-wrap {
     position: relative;
@@ -122,8 +179,8 @@
 
   h1 {
     margin: 20px 0 0;
-    font-size: clamp(1.55rem, 6.4vw, 2rem);
-    font-weight: 800;
+    font-size: clamp(1.62rem, 6.6vw, 2.05rem);
+    font-weight: 700;
     letter-spacing: .01em;
     background: linear-gradient(180deg, #fff 35%, rgba(226, 232, 240, .68));
     -webkit-background-clip: text;
@@ -168,6 +225,13 @@
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50%      { opacity: .45; transform: scale(.82); }
+  }
+  /* 弹性 Spring（13）：状态切换时有一下轻微回弹，比纯淡入更有反馈 */
+  .status.pop { animation: spring .46s cubic-bezier(.34, 1.46, .5, 1) both; }
+  @keyframes spring {
+    0%   { transform: scale(.9); }
+    62%  { transform: scale(1.035); }
+    100% { transform: scale(1); }
   }
 
   .bar {
@@ -227,21 +291,17 @@
     -webkit-tap-highlight-color: transparent;
     transition: background-color .2s, border-color .2s, color .2s, transform .15s;
   }
-  .btn:hover { background: rgba(255, 255, 255, .1); color: #fff; }
-  .btn:active { transform: scale(.985); }
   .btn:focus-visible { outline: 2px solid #a78bfa; outline-offset: 3px; }
   .btn:disabled {
     opacity: .45;
     cursor: default;
     transform: none;
   }
-  .btn:disabled:hover { background: rgba(255, 255, 255, .05); color: #cbd5e1; }
   .btn-primary {
     border-color: rgba(139, 92, 246, .45);
     background: linear-gradient(180deg, rgba(139, 92, 246, .3), rgba(139, 92, 246, .16));
     color: #ede9fe;
   }
-  .btn-primary:hover { background: linear-gradient(180deg, rgba(139, 92, 246, .42), rgba(139, 92, 246, .24)); }
   .btn[hidden] { display: none; }
   /* 同一 WiFi 下走局域网，比隧道快两个数量级 */
   .btn-lan {
@@ -250,9 +310,53 @@
     background: linear-gradient(180deg, rgba(16, 185, 129, .2), rgba(16, 185, 129, .1));
     color: #a7f3d0;
   }
-  .btn-lan:hover {
-    background: linear-gradient(180deg, rgba(16, 185, 129, .3), rgba(16, 185, 129, .16));
-    color: #d1fae5;
+
+  /* 悬停上浮 Hover Lift（15）：只给精确指针设备，触屏不会卡住浮起态 */
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, .1);
+      color: #fff;
+      box-shadow: 0 14px 28px -18px rgba(0, 0, 0, .95);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(180deg, rgba(139, 92, 246, .42), rgba(139, 92, 246, .24));
+      color: #fff;
+    }
+    .btn-lan:hover {
+      background: linear-gradient(180deg, rgba(16, 185, 129, .3), rgba(16, 185, 129, .16));
+      color: #d1fae5;
+      box-shadow: 0 14px 28px -18px rgba(16, 185, 129, .55);
+    }
+    .btn:disabled:hover {
+      transform: none;
+      background: rgba(255, 255, 255, .05);
+      color: #cbd5e1;
+      box-shadow: none;
+    }
+  }
+  .btn:active { transform: translateY(0) scale(.985); }
+
+  /* 流光 Shimmer（10）：一道光周期性扫过高亮按钮，提示"这里最快" */
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shine::after {
+    content: "";
+    position: absolute;
+    top: -60%;
+    bottom: -60%;
+    left: 0;
+    width: 62px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .22), transparent);
+    transform: translateX(-90px) skewX(-18deg);
+    animation: shimmer 5.6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes shimmer {
+    0%, 56%   { transform: translateX(-90px) skewX(-18deg); }
+    92%, 100% { transform: translateX(560px) skewX(-18deg); }
   }
 
   .hint {
@@ -280,6 +384,7 @@
 </head>
 <body>
   <div class="bg" aria-hidden="true"></div>
+  <div class="grid" aria-hidden="true"></div>
   <div class="stars" aria-hidden="true"></div>
 
   <main class="card">
@@ -299,7 +404,7 @@
     <p class="detail" id="detail"></p>
 
     <div class="actions">
-      <a class="btn btn-lan" id="lanBtn" href="#" hidden>⚡ 同一 WiFi 秒开</a>
+      <a class="btn btn-lan btn-shine" id="lanBtn" href="#" hidden>⚡ 同一 WiFi 秒开</a>
       <button class="btn btn-primary" id="retry" type="button">立即重试</button>
       <a class="btn" href="https://sryae07.github.io/starwaves/">打开项目主页</a>
     </div>
@@ -351,6 +456,11 @@
     el.detail.textContent = detail || "";
     el.bar.classList.toggle("show", kind === "busy");
     el.retry.disabled = kind === "busy";
+
+    /* 弹性 Spring（13）：重放一次回弹动画，让状态切换有"落点" */
+    el.wrap.classList.remove("pop");
+    void el.wrap.offsetWidth;
+    el.wrap.classList.add("pop");
   }
 
   function schedule(ms) {
@@ -513,6 +623,37 @@
       if (!settled) schedule(RETRY_DELAY);
     }
   }
+
+  /* 聚光 Spotlight（02）：卡片高光跟随指针。只在鼠标设备绑定，触屏保留默认光位 */
+  (function spotlight() {
+    var card = document.querySelector(".card");
+    if (!card || !window.matchMedia) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+    var queued = false;
+    var px = 0;
+    var py = 0;
+
+    function paint() {
+      queued = false;
+      var rect = card.getBoundingClientRect();
+      card.style.setProperty("--mx", (px - rect.left).toFixed(0) + "px");
+      card.style.setProperty("--my", (py - rect.top).toFixed(0) + "px");
+    }
+
+    card.addEventListener("pointermove", function (event) {
+      px = event.clientX;
+      py = event.clientY;
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(paint);
+    });
+
+    card.addEventListener("pointerleave", function () {
+      card.style.removeProperty("--mx");
+      card.style.removeProperty("--my");
+    });
+  })();
 
   el.retry.addEventListener("click", function () {
     attempt = 0;
