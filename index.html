@@ -307,7 +307,8 @@
   var FIXED_BASE = "https://dash.sryae07.dpdns.org";
   var POINTER_URL = "current-server.json";
   var PROBE_TIMEOUT = 5000;
-  var FIXED_PROBE_TIMEOUT = 4000;
+  /* 国内到 Cloudflare 边缘有时要 8~12 秒，短超时会把它误判成离线 */
+  var FIXED_PROBE_TIMEOUT = 12000;
   var RETRY_DELAY = 5000;
   var STORE_KEY = "sryaestart_server";
 
@@ -433,7 +434,7 @@
       setState(
         "busy",
         attempt === 1 ? "正在连接你的看板…" : "正在重试连接（第 " + attempt + " 次）",
-        FIXED_BASE ? "正在连接 dash.sryae07.dpdns.org" : "正在解析最新服务器地址"
+        FIXED_BASE ? "正在连接 dash.sryae07.dpdns.org · 网络较慢时最长约 12 秒" : "正在解析最新服务器地址"
       );
 
       var cached = readStore();
