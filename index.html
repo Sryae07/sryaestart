@@ -243,6 +243,17 @@
   }
   .btn-primary:hover { background: linear-gradient(180deg, rgba(139, 92, 246, .42), rgba(139, 92, 246, .24)); }
   .btn[hidden] { display: none; }
+  /* 同一 WiFi 下走局域网，比隧道快两个数量级 */
+  .btn-lan {
+    flex: 1 1 100%;
+    border-color: rgba(52, 211, 153, .38);
+    background: linear-gradient(180deg, rgba(16, 185, 129, .2), rgba(16, 185, 129, .1));
+    color: #a7f3d0;
+  }
+  .btn-lan:hover {
+    background: linear-gradient(180deg, rgba(16, 185, 129, .3), rgba(16, 185, 129, .16));
+    color: #d1fae5;
+  }
 
   .hint {
     margin: 18px 0 0;
@@ -288,6 +299,7 @@
     <p class="detail" id="detail"></p>
 
     <div class="actions">
+      <a class="btn btn-lan" id="lanBtn" href="#" hidden>⚡ 同一 WiFi 秒开</a>
       <button class="btn btn-primary" id="retry" type="button">立即重试</button>
       <a class="btn" href="https://sryae07.github.io/starwaves/">打开项目主页</a>
     </div>
@@ -317,7 +329,8 @@
     text: document.getElementById("statusText"),
     detail: document.getElementById("detail"),
     bar: document.getElementById("bar"),
-    retry: document.getElementById("retry")
+    retry: document.getElementById("retry"),
+    lan: document.getElementById("lanBtn")
   };
 
   var attempt = 0;
@@ -374,9 +387,12 @@
     }).then(function (response) {
       return response.ok ? response.json() : null;
     }).then(function (data) {
-      return safeUrl(data && data.url);
+      return {
+        url: safeUrl(data && data.url),
+        lan: safeUrl(data && data.lan)
+      };
     }).catch(function () {
-      return null;
+      return { url: null, lan: null };
     });
 
     if (!timerId) return request;
@@ -411,6 +427,15 @@
     });
   }
 
+  /* 电脑和手机在同一个 WiFi 时，直连局域网地址几乎瞬开。
+     注意：HTTPS 页面无法探测 http:// 内网地址（混合内容会被拦），
+     所以这里只提供一个点了就走的一级跳转. */
+  function showLan(base) {
+    if (!el.lan) return;
+    el.lan.href = base + "/dashboard";
+    el.lan.hidden = false;
+  }
+
   function goTo(base) {
     settled = true;
     clearTimeout(timer);
@@ -437,6 +462,12 @@
         FIXED_BASE ? "正在连接 dash.sryae07.dpdns.org · 网络较慢时最长约 12 秒" : "正在解析最新服务器地址"
       );
 
+      /* 顺带拉 current-server.json：里面有局域网地址就把「秒开」按钮亮出来 */
+      var pointerReady = fetchPointer().then(function (info) {
+        if (info && info.lan) showLan(info.lan);
+        return info;
+      });
+
       var cached = readStore();
       var candidates = [];
       function add(url) {
@@ -456,8 +487,8 @@
 
       /* 固定域名没通，再退回 current-server.json 里的一次性地址 */
       add(cached);
-      var pointer = await fetchPointer();
-      add(pointer);
+      var info = await pointerReady;
+      add(info && info.url);
 
       for (var j = 0; j < candidates.length; j++) {
         if (j === 0 && FIXED_BASE) continue; /* 刚试过 */
