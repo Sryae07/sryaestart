@@ -187,7 +187,7 @@ async function api(path, options = {}) {
   const isAuth = path.indexOf('/api/auth/') === 0;
   const resp = await fetchRetry(API_BASE + path, Object.assign({}, options, { headers }), {
     attempts: isAuth ? 3 : 2,
-    timeout: isAuth ? 8000 : 10000,
+    timeout: options.timeoutMs != null ? options.timeoutMs : (isAuth ? 8000 : 20000),
     onRetry: options.onRetry,
   });
   if (!resp.ok) {
@@ -915,6 +915,7 @@ function renderGame(spec, game) {
 
   const launchButton = spec.launchable !== false && OWNER
     ? `<button class="gbtn gbtn-primary launch-btn" data-game="${key}">🚀 启动游戏</button>`
+      + `<button class="gbtn stop-btn hidden" data-game="${key}">⏹ 关闭游戏</button>`
     : '';
   const launchHint = spec.launchable !== false && !OWNER
     ? `<span class="glock" title="为避免他人控制这台电脑，只有机主账号可以启动游戏">🔒 仅机主可启动</span>`
@@ -1315,6 +1316,8 @@ document.body.addEventListener('click', (e) => {
   if (bindBtn) openBindModal(bindBtn.dataset.game);
   const launchBtn = e.target.closest('.launch-btn');
   if (launchBtn) launchGame(launchBtn);
+  const stopBtn = e.target.closest('.stop-btn');
+  if (stopBtn) stopGame(stopBtn);
   const galleryDel = e.target.closest('.gallery-del-btn');
   if (galleryDel) { deleteGalleryItem(galleryDel.dataset.game, galleryDel.dataset.id); return; }
   const galleryUpload = e.target.closest('.gallery-upload-btn');
@@ -1770,19 +1773,68 @@ async function syncGame(btn) {
 }
 
 async function launchGame(btn) {
-  btn.disabled = true;
+  if (btn.disabled) return;
   const game = btn.dataset.game;
   const label = specOf(game).label;
-  btn.textContent = '启动中…';
+  const card = btn.closest('.gcard');
+  const stopBtn = card ? card.querySelector('.stop-btn') : null;
+  const t0 = Date.now();
+  btn.disabled = true;
+  btn.textContent = '启动中… 0s';
+  // 隧道慢时给用户一个「还在跑」的读数，别让它看起来像死了
+  const tick = setInterval(() => {
+    btn.textContent = `启动中… ${Math.floor((Date.now() - t0) / 1000)}s`;
+  }, 500);
   try {
-    await api(`/api/launch/${game}`, { method: 'POST' });
-    toast(`🚀 ${label}已在电脑上启动`);
-    setTimeout(() => { btn.disabled = false; btn.textContent = '🚀 启动游戏'; }, 2500);
+    const res = await api(`/api/launch/${game}`, { method: 'POST', timeoutMs: 45000 });
+    if (res && res.already) toast(`👌 ${res.message || label + '已经在运行了'}`);
+    else if (res && res.started === true) toast(`🚀 ${res.message || label + '已启动'}`);
+    else if (res && res.started === false) toast(`⚠️ ${res.message}`, false);
+    else toast(`🚀 ${(res && res.message) || '启动指令已发出'}`);
+    if (stopBtn) stopBtn.classList.remove('hidden');
   } catch (err) {
-    toast(err.message, false);
+    // 网络超时 ≠ 没启动：指令可能已经到电脑了，别让用户以为失败
+    if (err.isNetwork) toast(`⚠️ ${label}：网络没等到回复，游戏可能已经在电脑上启动了（已启动不会重复打开），稍等一下再看看`, false);
+    else toast(`❌ ${label}启动失败：${err.message}`, false);
+  } finally {
+    clearInterval(tick);
     btn.disabled = false;
     btn.textContent = '🚀 启动游戏';
   }
+}
+
+async function stopGame(btn) {
+  if (btn.disabled) return;
+  const game = btn.dataset.game;
+  const label = specOf(game).label;
+  btn.disabled = true;
+  btn.textContent = '关闭中…';
+  try {
+    const res = await api(`/api/stop/${game}`, { method: 'POST', timeoutMs: 45000 });
+    if (res && res.stopped) toast(`⏹ ${res.message || label + '已关闭'}`);
+    else toast((res && res.message) || `${label}没有在运行`, false);
+    if (res && !res.running) btn.classList.add('hidden');
+  } catch (err) {
+    toast(`关闭失败：${err.message}`, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⏹ 关闭游戏';
+  }
+}
+
+/* 进页面后问一次「哪些游戏在跑」，把对应的「关闭游戏」按钮亮出来 */
+async function refreshRunning() {
+  if (!OWNER || isShare) return;
+  try {
+    const res = await api('/api/running', { timeoutMs: 20000 });
+    const map = (res && res.games) || {};
+    Object.keys(map).forEach((key) => {
+      const card = document.getElementById('game-' + key);
+      const btn = card ? card.querySelector('.stop-btn') : null;
+      if (!btn) return;
+      btn.classList.toggle('hidden', !map[key]);
+    });
+  } catch (e) { /* 拿不到就不显示关闭按钮，不影响其它功能 */ }
 }
 
 /* ---------- 远程关机 ---------- */
@@ -1950,6 +2002,7 @@ async function load() {
     render(data);
     clearStale();
     writeCache(data);
+    refreshRunning();
   } catch (err) {
     if (err.message === '请先登录') {
       clearCache();
