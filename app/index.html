@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sryaestart · 离线资讯</title>
+<meta name="description" content="电脑端不在线时，手机上依然可以看游戏资讯：星穹铁道、鸣潮、绝区零等官方与社区动态快照。">
+<meta name="theme-color" content="#05070f">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../icon-192.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --bg: #05070f;
+    --card: rgba(255, 255, 255, .045);
+    --line: rgba(255, 255, 255, .09);
+    --text: #e7e9f2;
+    --dim: #8d95a8;
+    --faint: #59617a;
+    --violet: #a78bfa;
+    --cyan: #67e8f9;
+    --green: #34d399;
+  }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+  .bg {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(60% 40% at 15% 0%, rgba(139, 92, 246, .28), transparent 70%),
+      radial-gradient(55% 38% at 92% 6%, rgba(34, 211, 238, .16), transparent 72%),
+      radial-gradient(70% 45% at 50% 105%, rgba(59, 130, 246, .14), transparent 70%);
+  }
+  .stars {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .45;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 18%, #fff, transparent),
+      radial-gradient(1.2px 1.2px at 72% 9%, #cfe3ff, transparent),
+      radial-gradient(1.6px 1.6px at 44% 33%, #fff, transparent),
+      radial-gradient(1.1px 1.1px at 86% 41%, #dbeafe, transparent),
+      radial-gradient(1.4px 1.4px at 25% 62%, #fff, transparent),
+      radial-gradient(1.2px 1.2px at 66% 74%, #c7d2fe, transparent),
+      radial-gradient(1px 1px at 91% 88%, #fff, transparent);
+    background-size: 360px 320px;
+    mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 92%);
+  }
+  .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---------- 顶部 ---------- */
+  .top {
+    display: flex; align-items: center; gap: 12px;
+    padding: calc(18px + env(safe-area-inset-top)) 0 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: inherit; min-width: 0; }
+  .brand img {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    box-shadow: 0 10px 26px -12px rgba(139, 92, 246, .9);
+  }
+  .brand b { display: block; font-size: 1.05rem; letter-spacing: -.01em; line-height: 1.25; }
+  .brand i {
+    display: block; margin-top: 2px; font-size: .7rem; font-style: normal; color: var(--dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .offline-pill {
+    margin-left: auto; flex: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: .68rem; color: #fecdd3;
+    border: 1px solid rgba(244, 63, 94, .35);
+    background: rgba(244, 63, 94, .12);
+    padding: 6px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .offline-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #fb7185; }
+
+  /* ---------- 视图 ---------- */
+  .view[hidden] { display: none; }
+  .snapbar {
+    display: flex; align-items: center; gap: 10px;
+    font-size: .7rem; color: var(--faint); margin: 2px 0 12px;
+  }
+  .snapbar button, .more {
+    margin-left: auto; flex: none;
+    font: inherit; font-size: .7rem; color: var(--dim);
+    background: rgba(255, 255, 255, .05); border: 1px solid var(--line);
+    padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    touch-action: manipulation;
+  }
+  .more { margin: 14px auto 0; display: block; padding: 9px 20px; font-size: .78rem; }
+  .snapbar button:active, .more:active { transform: scale(.97); }
+
+  .search { position: relative; margin-bottom: 12px; }
+  .search input {
+    width: 100%; padding: 12px 40px 12px 14px;
+    font: inherit; font-size: .85rem; color: var(--text);
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid var(--line); border-radius: 14px; outline: none;
+  }
+  .search input::placeholder { color: #4d5570; }
+  .search input:focus { border-color: rgba(167, 139, 250, .55); background: rgba(167, 139, 250, .07); }
+  .search button {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 28px; border: 0; border-radius: 50%;
+    background: rgba(255, 255, 255, .1); color: var(--dim); font-size: .7rem; cursor: pointer;
+  }
+
+  .chips {
+    display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; font: inherit; font-size: .74rem; white-space: nowrap;
+    padding: 7px 13px; border-radius: 999px; cursor: pointer;
+    color: #aab2c6; background: rgba(255, 255, 255, .05);
+    border: 1px solid var(--line); transition: .18s;
+  }
+  .chip.on {
+    color: #ede9fe; border-color: rgba(167, 139, 250, .55);
+    background: rgba(167, 139, 250, .18);
+  }
+
+  .feed { display: grid; gap: 10px; }
+  .item {
+    display: block; text-decoration: none; color: inherit;
+    padding: 14px 15px; border-radius: 16px;
+    background: var(--card); border: 1px solid var(--line);
+    transition: .2s;
+  }
+  .item:active { transform: scale(.985); }
+  .item .meta {
+    display: flex; align-items: center; gap: 7px;
+    font-size: .68rem; color: var(--faint); margin-bottom: 7px;
+  }
+  .item .tag {
+    padding: 2px 7px; border-radius: 6px;
+    background: rgba(255, 255, 255, .07); color: #b9c1d4;
+  }
+  .item .tag.official { background: rgba(52, 211, 153, .14); color: #6ee7b7; }
+  .item h3 { margin: 0; font-size: .92rem; font-weight: 600; line-height: 1.45; }
+  .item p { margin: 6px 0 0; font-size: .76rem; line-height: 1.6; color: #8b93a7;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .item .time { margin-top: 8px; font-size: .66rem; color: #4f566c; }
+  .empty, .loading {
+    padding: 40px 0; text-align: center; font-size: .8rem; color: var(--faint);
+  }
+
+  /* ---------- 需要电脑端的说明卡 ---------- */
+  .need {
+    padding: 22px 20px; border-radius: 20px;
+    background: linear-gradient(180deg, rgba(139, 92, 246, .1), rgba(255, 255, 255, .035));
+    border: 1px solid rgba(167, 139, 250, .22);
+  }
+  .need .ico { font-size: 1.7rem; }
+  .need h2 { margin: 10px 0 0; font-size: 1.02rem; }
+  .need p { margin: 8px 0 0; font-size: .8rem; line-height: 1.75; color: var(--dim); }
+  .need ol { margin: 12px 0 0; padding-left: 20px; font-size: .78rem; line-height: 1.9; color: #9aa3b8; }
+  .need .row { display: flex; gap: 10px; margin-top: 16px; }
+  .btn {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center;
+    min-height: 46px; padding: 0 16px; border-radius: 13px;
+    font: inherit; font-size: .84rem; font-weight: 600; text-decoration: none;
+    color: var(--text); background: rgba(255, 255, 255, .06);
+    border: 1px solid var(--line); cursor: pointer; touch-action: manipulation;
+  }
+  .btn.primary {
+    color: #ede9fe; border-color: rgba(139, 92, 246, .45);
+    background: linear-gradient(180deg, rgba(139, 92, 246, .32), rgba(139, 92, 246, .16));
+  }
+  .btn:active { transform: scale(.985); }
+  .note {
+    margin-top: 14px; padding: 12px 14px; border-radius: 13px;
+    font-size: .72rem; line-height: 1.75; color: #7f8798;
+    background: rgba(255, 255, 255, .03); border: 1px dashed rgba(255, 255, 255, .1);
+  }
+
+  /* ---------- 底栏 ---------- */
+  .mbar {
+    position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: min(calc(100vw - 24px), 460px);
+    display: grid; grid-template-columns: repeat(5, 1fr); align-items: end;
+    height: 64px; padding: 0 6px;
+    border-radius: 32px; z-index: 20;
+    background: rgba(13, 18, 33, .82);
+    border: 1px solid rgba(255, 255, 255, .09);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 18px 40px -22px #000;
+  }
+  .mbar-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; height: 64px; padding: 0;
+    background: none; border: 0; cursor: pointer; text-decoration: none;
+    color: #7c8497; font: inherit; font-size: .62rem; position: relative;
+    touch-action: manipulation;
+  }
+  .mbar-item svg { width: 21px; height: 21px; stroke-width: 1.9; }
+  .mbar-item.on { color: #ddd6fe; }
+  .mbar-item.on::after {
+    content: ""; position: absolute; bottom: 6px; width: 14px; height: 2px;
+    border-radius: 2px; background: linear-gradient(90deg, #a78bfa, #67e8f9);
+  }
+  .mbar-center {
+    width: 52px; height: 52px; margin: -16px auto 4px;
+    border-radius: 50%; border: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(140deg, #6ee7b7, #34d399 45%, #22d3ee);
+    color: #052e23; box-shadow: 0 12px 26px -10px rgba(52, 211, 153, .8);
+  }
+  .mbar-center svg { width: 24px; height: 24px; }
+  .mbar-center:active { transform: scale(.94); }
+  .mbar-center:disabled svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    margin-top: 26px; padding-bottom: 8px; text-align: center;
+    font-size: .66rem; line-height: 1.9; color: #454c60;
+  }
+
+  @media (min-width: 700px) {
+    .wrap { padding: 0 24px; }
+    .feed { grid-template-columns: 1fr 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div>
+<div class="stars" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/">
+      <img src="../icon-192.png" width="44" height="44" alt="Sryaestart">
+      <span><b>Sryaestart</b><i>离线模式 · 电脑端未连接</i></span>
+    </a>
+    <span class="offline-pill"><span class="dot"></span>离线</span>
+  </header>
+
+  <!-- 资讯 -->
+  <section class="view" id="view-news">
+    <div class="snapbar">
+      <span id="snapInfo">正在读取资讯快照…</span>
+      <button type="button" id="reload">刷新</button>
+    </div>
+    <div class="search">
+      <input id="q" type="search" placeholder="搜索标题 / 关键词" autocomplete="off">
+      <button type="button" id="clear" hidden aria-label="清空">✕</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="feed" id="feed"><div class="loading">正在加载…</div></div>
+    <button class="more" type="button" id="more" hidden>加载更多</button>
+    <p class="note" id="feedNote" hidden></p>
+  </section>
+
+  <!-- 签到 -->
+  <section class="view" id="view-checkin" hidden>
+    <div class="need">
+      <div class="ico">📅</div>
+      <h2>签到需要电脑端在线</h2>
+      <p>签到记录、连续天数和使用时长都存在你电脑上的数据库里，电脑关机时手机读不到这份数据。</p>
+      <ol>
+        <li>电脑开机，双击 Sryaestart 的 <b>start.bat</b></li>
+        <li>手机回到入口页，会自动跳进看板</li>
+      </ol>
+      <div class="row">
+        <a class="btn primary" href="/">重试连接</a>
+        <button class="btn" type="button" data-tab="news">先看资讯</button>
+      </div>
+    </div>
+    <p class="note">电脑关机期间，签到不会断——开机后服务恢复，记录照常累计。</p>
+  </section>
+
+  <!-- 看板 -->
+  <section class="view" id="view-board" hidden>
+    <div class="need">
+      <div class="ico">🗂</div>
+      <h2>看板需要电脑端在线</h2>
+      <p>游戏库、使用时长、截图相册、一键启动游戏，全部在电脑上的本地服务里运行，手机只是遥控器。</p>
+      <ol>
+        <li>确认电脑没关机 / 没休眠</li>
+        <li>双击 <b>start.bat</b> 启动服务</li>
+        <li>回到入口页，或点下面的按钮重连</li>
+      </ol>
+      <div class="row">
+        <a class="btn primary" href="/">重试连接</a>
+        <button class="btn" type="button" data-tab="news">先看资讯</button>
+      </div>
+    </div>
+    <p class="note">这台电脑上的服务同时负责把外网请求转发进来，所以它关机时看板和签到都无法访问，只有资讯页保留最近快照。</p>
+  </section>
+
+  <footer>
+    Sryaestart · 与米哈游 / 库洛游戏无关 · 非官方工具，仅供个人学习使用<br>
+    资讯版权归各游戏厂商所有
+  </footer>
+</div>
+
+<nav class="mbar" aria-label="离线导航">
+  <button class="mbar-item" type="button" data-tab="news" id="nav-news">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13a2 2 0 0 1 2 2v12H6a2 2 0 0 1-2-2z"/><path d="M19 8h1.5a1.5 1.5 0 0 1 1.5 1.5V18a2 2 0 0 1-2 2"/><path d="M8 9h6M8 13h6M8 17h3"/></svg>
+    <span>资讯</span>
+  </button>
+  <button class="mbar-item" type="button" data-tab="checkin" id="nav-checkin">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="5.2" width="17.2" height="15.4" rx="3.2"/><path d="M8 2.9v4.2M16 2.9v4.2M3.4 10h17.2"/><path d="M8.9 15.5l2.1 2.1 4.1-4.3"/></svg>
+    <span>签到</span>
+  </button>
+  <a class="mbar-center" href="/" aria-label="重试连接">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4.2v5.3h-5.3"/></svg>
+  </a>
+  <button class="mbar-item" type="button" data-tab="board" id="nav-board">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
+    <span>看板</span>
+  </button>
+  <a class="mbar-item" href="https://github.com/Sryae07/starwaves" target="_blank" rel="noopener noreferrer">
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 .8C5.73.8.5 6.03.5 12.3c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-1.94c-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .3.21.67.8.55A11.51 11.51 0 0 0 23.5 12.3C23.5 6.03 18.27.8 12 .8Z"/></svg>
+    <span>GitHub</span>
+  </a>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+  var SNAPSHOT_URLS = [
+    "https://sryae07.github.io/starwaves/news-data.json",
+    "news-data.json"
+  ];
+  var PAGE = 36;
+
+  var data = null;
+  var games = [];
+  var selected = {};
+  var shown = PAGE;
+  var query = "";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var feedEl = $("feed");
+  var chipEl = $("chips");
+  var moreEl = $("more");
+  var noteEl = $("feedNote");
+  var snapEl = $("snapInfo");
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function rel(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    var diff = Date.now() - d.getTime();
+    var min = Math.floor(diff / 60000);
+    if (min < 1) return "刚刚";
+    if (min < 60) return min + " 分钟前";
+    var h = Math.floor(min / 60);
+    if (h < 24) return h + " 小时前";
+    var day = Math.floor(h / 24);
+    if (day < 30) return day + " 天前";
+    return d.toLocaleDateString("zh-CN");
+  }
+
+  function specOf(key) {
+    for (var i = 0; i < games.length; i++) if (games[i].key === key) return games[i];
+    return null;
+  }
+
+  function visibleItems() {
+    if (!data) return [];
+    var keys = Object.keys(selected).filter(function (k) { return selected[k]; });
+    var all = keys.length === 0 || keys.length === games.length;
+    var q = query.trim().toLowerCase();
+    return data.items.filter(function (it) {
+      if (!all && !selected[it.game]) return false;
+      if (!q) return true;
+      return (it.title || "").toLowerCase().indexOf(q) !== -1 ||
+        (it.summary || "").toLowerCase().indexOf(q) !== -1 ||
+        (it.source || "").toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  function renderChips() {
+    chipEl.innerHTML = "";
+    var all = document.createElement("button");
+    all.type = "button";
+    all.className = "chip on";
+    all.textContent = "全部";
+    all.addEventListener("click", function () {
+      var keys = Object.keys(selected).filter(function (k) { return selected[k]; });
+      if (keys.length === games.length) selected = {};
+      else games.forEach(function (g) { selected[g.key] = true; });
+      shown = PAGE;
+      syncChips();
+      renderFeed();
+    });
+    chipEl.appendChild(all);
+    games.forEach(function (g) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.dataset.key = g.key;
+      b.textContent = (g.emoji || "") + " " + g.label;
+      b.addEventListener("click", function () {
+        selected[g.key] = !selected[g.key];
+        shown = PAGE;
+        syncChips();
+        renderFeed();
+      });
+      chipEl.appendChild(b);
+    });
+    syncChips();
+  }
+
+  function syncChips() {
+    var keys = Object.keys(selected).filter(function (k) { return selected[k]; });
+    var allOn = keys.length === 0 || keys.length === games.length;
+    chipEl.querySelector(".chip").className = "chip" + (allOn ? " on" : "");
+    games.forEach(function (g) {
+      var b = chipEl.querySelector('[data-key="' + g.key + '"]');
+      if (b) b.className = "chip" + (selected[g.key] ? " on" : "");
+    });
+  }
+
+  function renderFeed() {
+    if (!data) return;
+    var items = visibleItems();
+    if (!items.length) {
+      feedEl.innerHTML = '<p class="empty">没有匹配的资讯</p>';
+      moreEl.hidden = true;
+      return;
+    }
+    var slice = items.slice(0, shown);
+    feedEl.innerHTML = slice.map(function (it) {
+      var g = specOf(it.game) || {};
+      var tagCls = "tag" + (it.official ? " official" : "");
+      return '<a class="item" href="' + esc(it.url) + '" target="_blank" rel="noopener noreferrer">' +
+        '<div class="meta"><span>' + esc(g.emoji || "") + " " + esc(g.label || it.game) + '</span>' +
+        '<span class="' + tagCls + '">' + esc(it.category || it.source || "") + '</span>' +
+        (it.source && it.category ? '<span>' + esc(it.source) + '</span>' : "") + '</div>' +
+        '<h3>' + esc(it.title) + '</h3>' +
+        (it.summary ? '<p>' + esc(it.summary) + '</p>' : "") +
+        '<div class="time">' + esc(rel(it.published_at)) + '</div>' +
+        '</a>';
+    }).join("");
+    moreEl.hidden = items.length <= shown;
+    moreEl.textContent = "加载更多（还有 " + (items.length - shown) + " 条）";
+  }
+
+  async function loadSnapshot() {
+    snapEl.textContent = "正在读取资讯快照…";
+    feedEl.innerHTML = '<div class="loading">正在加载…</div>';
+    for (var i = 0; i < SNAPSHOT_URLS.length; i++) {
+      try {
+        var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+        var t = ctrl ? setTimeout(function () { ctrl.abort(); }, 9000) : null;
+        var res = await fetch(SNAPSHOT_URLS[i] + "?t=" + Date.now(), {
+          cache: "no-store",
+          signal: ctrl ? ctrl.signal : undefined
+        });
+        if (t) clearTimeout(t);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        var payload = await res.json();
+        if (!payload || !payload.items || !payload.items.length) throw new Error("empty");
+        data = payload;
+        games = payload.games || [];
+        selected = {};
+        shown = PAGE;
+        renderChips();
+        renderFeed();
+        snapEl.textContent = "快照生成于 " + rel(payload.generated_at) + " · 共 " + payload.items.length + " 条";
+        noteEl.hidden = false;
+        noteEl.textContent = "电脑端离线时显示的是最近一次快照（电脑开着时每 3 小时自动更新）。点下面的按钮重新连接，就能看到实时数据。";
+        return;
+      } catch (e) { /* 换下一个源 */ }
+    }
+    feedEl.innerHTML = '<p class="empty">快照读取失败，请检查网络后重试</p>';
+    snapEl.textContent = "快照不可用";
+  }
+
+  /* ---------- 视图切换 ---------- */
+  var tabs = ["news", "checkin", "board"];
+  function showTab(name) {
+    if (tabs.indexOf(name) === -1) name = "news";
+    tabs.forEach(function (t) {
+      var v = $("view-" + t);
+      if (v) v.hidden = t !== name;
+      var b = $("nav-" + t);
+      if (b) b.className = "mbar-item" + (t === name ? " on" : "");
+    });
+    if (name === "news" && !data) loadSnapshot();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  document.querySelectorAll("[data-tab]").forEach(function (b) {
+    b.addEventListener("click", function () { showTab(b.dataset.tab); });
+  });
+
+  /* ---------- 搜索 ---------- */
+  var qEl = $("q");
+  var clearEl = $("clear");
+  var timer = null;
+  qEl.addEventListener("input", function () {
+    clearEl.hidden = !qEl.value;
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      query = qEl.value;
+      shown = PAGE;
+      renderFeed();
+    }, 180);
+  });
+  clearEl.addEventListener("click", function () {
+    qEl.value = "";
+    query = "";
+    clearEl.hidden = true;
+    shown = PAGE;
+    renderFeed();
+    qEl.focus();
+  });
+
+  moreEl.addEventListener("click", function () {
+    shown += PAGE;
+    renderFeed();
+  });
+  $("reload").addEventListener("click", function () {
+    data = null;
+    loadSnapshot();
+  });
+
+  showTab((location.hash || "").replace("#", ""));
+  window.addEventListener("hashchange", function () {
+    showTab((location.hash || "").replace("#", ""));
+  });
+})();
+</script>
+</body>
+</html>
