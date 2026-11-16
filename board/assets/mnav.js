@@ -123,6 +123,11 @@
       // 手机上 header 整块 display:none，用 on() 判断会把所有按钮误判为"不存在"，
       // 所以这里只看按钮自身的 hidden 类（app.js 用 hidden 控制可用性/机主权限）。
       var ok = !b.classList.contains("hidden");
+      // 关机按钮由「机主」权限控制，个别情况下 hidden 类没被摘掉，用用户名上的 👑 兜底。
+      if (!ok && a[2] === "btn-shutdown") {
+        var who = document.getElementById("auth-user");
+        if (who && who.textContent.indexOf("👑") >= 0) ok = true;
+      }
       if (ok) rows.push(row({ icon: a[0], label: a[1], click: clickOn(a[2]) }));
     });
     if (rows.length) { body.appendChild(wrap); rows.forEach(function (r) { body.appendChild(r); }); any = true; }
