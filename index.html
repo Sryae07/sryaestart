@@ -438,7 +438,7 @@
   var POINTER_URL = "current-server.json";
   var PROBE_TIMEOUT = 5000;
   /* 国内到 Cloudflare 边缘有时要 8~12 秒，短超时会把它误判成离线 */
-  var FIXED_PROBE_TIMEOUT = 12000;
+  var FIXED_PROBE_TIMEOUT = 6000;
   var RETRY_DELAY = 5000;
   var STORE_KEY = "sryaestart_server";
 
@@ -565,7 +565,9 @@
     clearTimeout(timer);
     writeStore(base);
     setState("ok", "已连接，正在进入看板…", base.replace(/^https?:\/\//, ""));
-    location.replace(base + "/dashboard");
+    /* 电脑在线时进 GitHub Pages 上的静态看板：外壳由 Pages 直出（0.2s 级），
+       数据再走隧道，比整页穿隧道快得多。 */
+    location.replace(location.origin + "/board/");
   }
 
   async function run() {
