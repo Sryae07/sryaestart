@@ -211,6 +211,60 @@ async function api(path, options = {}) {
   return resp.json();
 }
 
+/* ---------- 本地缓存：先把上次的数据画出来，网络回来再刷新 ---------- */
+const CACHE_KEY = 'sw_board_cache_v1';
+const CACHE_TTL = 24 * 60 * 60 * 1000;
+
+function cacheId() {
+  return isShare ? 'share:' + shareId : 'me';
+}
+
+function readCache() {
+  try {
+    const all = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+    const item = all[cacheId()];
+    if (!item || !item.data || Date.now() - item.at > CACHE_TTL) return null;
+    return item;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeCache(payload) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+    all[cacheId()] = { at: Date.now(), games: REGISTRY, data: payload };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(all));
+  } catch (e) { /* 存储满或隐私模式，忽略即可 */ }
+}
+
+function clearCache() {
+  try {
+    const all = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+    delete all[cacheId()];
+    localStorage.setItem(CACHE_KEY, JSON.stringify(all));
+  } catch (e) { /* ignore */ }
+}
+
+function agoText(ts) {
+  const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (m < 1) return '刚刚';
+  if (m < 60) return m + ' 分钟前';
+  const h = Math.round(m / 60);
+  return h < 24 ? h + ' 小时前' : Math.round(h / 24) + ' 天前';
+}
+
+function markStale(item) {
+  const el = $('#updated-at');
+  if (!el) return;
+  el.textContent = '本地缓存 · ' + agoText(item.at) + ' · 正在取最新…';
+  el.classList.add('text-amber-300/85');
+}
+
+function clearStale() {
+  $('#updated-at')?.classList.remove('text-amber-300/85');
+}
+
 async function loadRegistry() {
   try {
     const res = await fetch(API_BASE + '/api/games');
@@ -278,6 +332,7 @@ function setLoggedOut(message, openModal = false) {
   authToken = '';
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  clearCache();
   updateAuthUI(null);
   if (!isShare) showLocked();
   if (message) toast(message, false);
@@ -295,6 +350,7 @@ function showLocked() {
 }
 
 function enterSession(data) {
+  clearCache();
   authToken = data.token;
   localStorage.setItem(TOKEN_KEY, authToken);
   localStorage.setItem(USER_KEY, JSON.stringify(data.user));
@@ -1185,6 +1241,7 @@ $('#btn-refresh')?.addEventListener('click', async () => {
   btn.textContent = '🔄 刷新';
 });
 $('#btn-force-refresh')?.addEventListener('click', () => {
+  clearCache();
   const sep = location.search ? '&' : '?';
   location.replace(location.pathname + location.search + sep + '_t=' + Date.now());
 });
@@ -1860,14 +1917,39 @@ async function load() {
     showLocked();
     return;
   }
+
+  // 1) 先把上次的数据画出来 —— 隧道再慢，页面也是秒开
+  const cached = readCache();
+  if (cached) {
+    if (!REGISTRY.length && cached.games && cached.games.length) {
+      REGISTRY = cached.games;
+      buildGameTabs();
+    }
+    try {
+      render(cached.data);
+      markStale(cached);
+    } catch (e) { /* 旧缓存结构不兼容，直接忽略 */ }
+  }
+
+  // 2) 再向服务端取最新，成功就替换并刷新缓存
   try {
     if (!REGISTRY.length) await loadRegistry();
     const data = isShare
       ? await api(`/api/share/${encodeURIComponent(shareId)}`)
       : await api('/api/me');
     render(data);
+    clearStale();
+    writeCache(data);
   } catch (err) {
-    if (err.message === '请先登录') return;
+    if (err.message === '请先登录') {
+      clearCache();
+      return;
+    }
+    if (cached) {
+      if (isShare) $('#player-name').textContent = cached.data.player?.nickname || '公开档案';
+      toast('网络较慢，先显示上次的数据', false);
+      return;
+    }
     if (isShare) {
       $('#player-name').textContent = '加载失败';
       $('#updated-at').textContent = err.message;

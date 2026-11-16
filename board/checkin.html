@@ -363,26 +363,46 @@
       startHeartbeat();
     }
 
+    function applyStats(stats) {
+      const btn = $('#btn-checkin');
+      if (stats.checked_today) {
+        btn.disabled = true;
+        btn.textContent = '✅ 今日已签到';
+        $('#ck-msg').textContent = '连续签到 ' + stats.streak + ' 天，明天再来！';
+      } else {
+        btn.disabled = false;
+        btn.textContent = '✅ 立即签到';
+        $('#ck-msg').textContent = '';
+      }
+      countUpInt($('#ck-streak'), stats.streak);
+      countUpInt($('#ck-days'), stats.total_days);
+      countUpDur($('#ck-total'), stats.total_seconds);
+      countUpDur($('#ck-today'), stats.today_seconds);
+      renderChart(stats.week);
+    }
+
+    function readCheckinCache() {
+      try {
+        const item = JSON.parse(localStorage.getItem('sw_checkin_cache') || 'null');
+        if (!item || !item.data || Date.now() - item.at > 86400000) return null;
+        return item;
+      } catch (e) {
+        return null;
+      }
+    }
+
     async function loadStats() {
+      const cached = readCheckinCache();
+      if (cached) {
+        try { applyStats(cached.data); } catch (e) { /* 旧缓存结构不兼容 */ }
+      }
       try {
         const stats = await api('/api/checkin', { silent: true });
-        const btn = $('#btn-checkin');
-        if (stats.checked_today) {
-          btn.disabled = true;
-          btn.textContent = '✅ 今日已签到';
-          $('#ck-msg').textContent = '连续签到 ' + stats.streak + ' 天，明天再来！';
-        } else {
-          btn.disabled = false;
-          btn.textContent = '✅ 立即签到';
-          $('#ck-msg').textContent = '';
-        }
-        countUpInt($('#ck-streak'), stats.streak);
-        countUpInt($('#ck-days'), stats.total_days);
-        countUpDur($('#ck-total'), stats.total_seconds);
-        countUpDur($('#ck-today'), stats.today_seconds);
-        renderChart(stats.week);
+        applyStats(stats);
+        try { localStorage.setItem('sw_checkin_cache', JSON.stringify({ at: Date.now(), data: stats })); } catch (e) { /* ignore */ }
       } catch (err) {
         if (err.message && err.message.includes('登录')) { logout(); return; }
+        if (cached) { toast('网络较慢，先显示上次的签到数据', false); return; }
         toast('签到数据加载失败：' + err.message, false);
       }
     }
