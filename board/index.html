@@ -168,7 +168,7 @@
   </style>
 </head>
 <body data-mnav="dashboard" class="min-h-screen text-slate-200 font-sans antialiased">
-  <script defer src="assets/mnav.js"></script>
+  <script defer src="assets/mnav.js?v=4"></script>
   <div class="stars"></div>
   <div class="orb orb-hsr"></div>
   <div class="orb orb-wuwa"></div>
@@ -503,7 +503,7 @@
       var seg = location.pathname.split('/').filter(Boolean);
       var base = (seg.length >= 2 && seg[seg.length - 2] === 'share') ? '../' : './';
       var s = document.createElement('script');
-      s.src = base + 'app.js?v=20';
+      s.src = base + 'app.js?v=22';
       document.body.appendChild(s);
     })();
   </script>
