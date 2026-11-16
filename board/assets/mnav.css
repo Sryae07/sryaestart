@@ -1,0 +1,98 @@
+/* Sryaestart · 手机端底部导航（参考抖音胶囊 tab bar） + 公共动效工具 */
+.mnav { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 70; width: min(calc(100vw - 20px), 420px); display: none; }
+@media (max-width: 640px) {
+  .mnav { display: block; }
+  body { padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important; }
+  /* 手机上把顶部那排按钮收进底部导航，头部只留标题 */
+  header nav, header [id="admin-actions"], header [id="auth-area"] { display: none !important; }
+}
+.mnav-bar {
+  position: relative; display: grid; grid-template-columns: repeat(7, 1fr); align-items: center; height: 64px;
+  border-radius: 34px; background: rgba(13, 18, 33, .78); border: 1px solid rgba(255, 255, 255, .1);
+  box-shadow: 0 20px 44px -20px #000, inset 0 1px 0 rgba(255, 255, 255, .07);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+}
+.mnav-item {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  height: 100%; color: #8b94ad; font-size: 10px; line-height: 1; text-decoration: none; border: 0; background: none;
+  font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color .18s ease;
+}
+.mnav-item svg { width: 22px; height: 22px; stroke-width: 1.9; }
+.mnav-item.is-active { color: #ddd6fe; }
+.mnav-item.is-active::after {
+  content: ''; position: absolute; bottom: 7px; width: 14px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+}
+.mnav-item:active { color: #fff; }
+.mnav-plus {
+  width: 54px; height: 54px; margin: -18px auto 0; border-radius: 50%; border: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(140deg, #6ee7b7, #34d399 45%, #22d3ee);
+  box-shadow: 0 12px 26px -10px rgba(52, 211, 153, .75), inset 0 1px 0 rgba(255, 255, 255, .45);
+  color: #062b23; transition: transform .18s cubic-bezier(.34, 1.46, .5, 1), filter .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.mnav-plus:active { transform: scale(.94); filter: brightness(1.06); }
+.mnav-plus svg { width: 26px; height: 26px; stroke-width: 2.4; }
+/* 窄屏（≤360px）：6 格底栏里 54px 的 + 会压到左右两格，收一号 */
+@media (max-width: 360px) {
+  .mnav-bar { height: 60px; border-radius: 32px; }
+  .mnav-item { font-size: 9.5px; }
+  .mnav-item svg { width: 20px; height: 20px; }
+  .mnav-item.is-active::after { bottom: 6px; width: 12px; }
+  .mnav-plus { width: 46px; height: 46px; margin-top: -15px; }
+  .mnav-plus svg { width: 22px; height: 22px; }
+}
+.mnav-badge {
+  position: absolute; top: 8px; left: calc(50% + 7px); min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 9px; background: #f43f5e; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
+  text-align: center; box-shadow: 0 4px 10px -4px rgba(244, 63, 94, .8);
+}
+
+/* 底部上滑面板 */
+.mnav-sheet { position: fixed; inset: 0; z-index: 80; display: none; }
+.mnav-sheet.open { display: block; }
+.mnav-sheet-bg { position: absolute; inset: 0; background: rgba(3, 6, 14, .62); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.mnav-sheet-panel {
+  position: absolute; left: 50%; bottom: 0; width: min(100vw, 520px); max-height: 82vh; overflow-y: auto;
+  transform: translateX(-50%) translateY(16px); opacity: 0;
+  border-radius: 26px 26px 0 0; border-top: 1px solid rgba(255, 255, 255, .1);
+  background: linear-gradient(180deg, #111829, #0a0f1c);
+  padding: 16px 14px calc(26px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -20px 50px -24px #000;
+  transition: transform .26s cubic-bezier(.22, 1, .36, 1), opacity .22s ease;
+}
+.mnav-sheet.open .mnav-sheet-panel { transform: translateX(-50%) translateY(0); opacity: 1; }
+.mnav-sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .16); margin: 0 auto 14px; }
+.mnav-sheet-title { font-size: 12.5px; color: #94a3b8; letter-spacing: .04em; margin: 10px 4px 0; }
+.mnav-sheet-title:first-child { margin-top: 0; }
+.mnav-row {
+  display: flex; align-items: center; gap: 11px; width: 100%; min-height: 46px; margin-top: 7px;
+  padding: 10px 13px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, .07);
+  background: rgba(255, 255, 255, .045); color: #e2e8f0; font-size: 14.5px; font-family: inherit;
+  text-align: left; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .16s ease, border-color .16s ease;
+}
+.mnav-row:active { background: rgba(255, 255, 255, .1); }
+.mnav-row-ico { font-size: 17px; width: 22px; text-align: center; }
+.mnav-row-extra { margin-left: auto; font-size: 12px; color: #64748b; }
+.mnav-row-primary { background: linear-gradient(120deg, rgba(139, 92, 246, .28), rgba(34, 211, 238, .28)); border-color: rgba(167, 139, 250, .4); }
+.mnav-close { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 12px; border: 0; background: rgba(255, 255, 255, .06); color: #cbd5e1; font-size: 15px; cursor: pointer; }
+
+/* 通用：滚动出现（12 Scroll Reveal）——动画用 backwards 填充，结束后不占用 transform，避免压住 hover 上浮 */
+.rv { opacity: 0; }
+.rv-in { opacity: 1; animation: rvIn .55s cubic-bezier(.22, 1, .36, 1) backwards; }
+@keyframes rvIn { from { opacity: 0; transform: translateY(18px) scale(.99); } to { opacity: 1; transform: none; } }
+
+/* 通用：跑马灯 */
+.mq-wrap { overflow: hidden; padding: 6px 0; -webkit-mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent); }
+.mq-track { display: flex; align-items: center; width: max-content; gap: 8px; animation: mqScroll 32s linear infinite; }
+.mq-wrap:hover .mq-track, .mq-wrap:focus-within .mq-track { animation-play-state: paused; }
+.mq-group { display: flex; align-items: center; gap: 8px; padding-right: 8px; }
+@keyframes mqScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mq-track { animation: none !important; }
+  .rv { opacity: 1 !important; transform: none !important; }
+  .mnav-sheet-panel { transition: none !important; }
+}
