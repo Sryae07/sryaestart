@@ -112,6 +112,7 @@
       ["🖼", "背景", "btn-bg"],
       ["🔗", "分享主页", "btn-share"],
       ["⬆", "更新数据", "btn-update"],
+      ["⏻", "远程关机", "btn-shutdown"],
     ];
     var any = false;
     var wrap = el("div", "mnav-sheet-title", "快捷操作");
