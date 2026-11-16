@@ -187,7 +187,7 @@ async function api(path, options = {}) {
   const isAuth = path.indexOf('/api/auth/') === 0;
   const resp = await fetchRetry(API_BASE + path, Object.assign({}, options, { headers }), {
     attempts: isAuth ? 3 : 2,
-    timeout: isAuth ? 8000 : 0,
+    timeout: isAuth ? 8000 : 10000,
     onRetry: options.onRetry,
   });
   if (!resp.ok) {
@@ -1339,6 +1339,16 @@ document.body.addEventListener('click', (e) => {
   if (galleryView) { window.open(galleryView.dataset.view, '_blank', 'noopener'); return; }
 });
 
+/* 缩略图取自隧道域名：离线/隧道不通时会 404，这里统一淡出，别显示破图标 */
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!img || img.tagName !== 'IMG' || img.dataset.broken) return;
+  img.dataset.broken = '1';
+  img.style.visibility = 'hidden';
+  const holder = img.closest('.ggallery-item, a, div');
+  if (holder) holder.style.opacity = '0.35';
+}, true);
+
 /* ---------- 接入游戏 ---------- */
 $('#btn-add-game')?.addEventListener('click', () => {
   $('#add-game-form').reset();
@@ -1953,6 +1963,9 @@ async function load() {
     if (isShare) {
       $('#player-name').textContent = '加载失败';
       $('#updated-at').textContent = err.message;
+    } else {
+      $('#player-name').textContent = '电脑端未连接';
+      $('#updated-at').textContent = '数据存在你电脑上：请开机并双击 start.bat，再点「🔄 刷新」';
     }
     toast(err.message, false);
   }
