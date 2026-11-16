@@ -172,20 +172,22 @@
     let staticSnapshot = null;
 
     async function loadRegistry() {
+      // 静态外壳：先拿 GitHub 快照（毫秒级），隧道慢也不挡首屏
       try {
-        const res = await fetch(apiBase + '/api/games');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        registry = (await res.json()).games || [];
-      } catch (err) {
-        registry = [];
+        const snap = await fetch('https://sryae07.github.io/starwaves/news-data.json');
+        if (snap.ok) { const data = await snap.json(); registry = data.games || []; staticSnapshot = data; }
+      } catch (e0) { registry = []; }
+      if (!registry.length) {
         try {
-          const snap = await fetch('https://sryae07.github.io/starwaves/news-data.json');
-          if (snap.ok) {
-            const data = await snap.json();
-            registry = data.games || [];
-            staticSnapshot = data;
-          }
-        } catch (e2) { /* 静态快照不可用则保持空注册表 */ }
+          const res = await fetch(apiBase + '/api/games');
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          registry = (await res.json()).games || [];
+        } catch (err) {
+          try {
+            const snap = await fetch('https://sryae07.github.io/starwaves/news-data.json');
+            if (snap.ok) { const data = await snap.json(); registry = data.games || []; staticSnapshot = data; }
+          } catch (e2) { /* 静态快照不可用则保持空注册表 */ }
+        }
       }
       const box = document.getElementById('game-filters');
       registry.forEach((g) => {
@@ -325,23 +327,35 @@
       const btn = document.getElementById('btn-refresh');
       btn.disabled = true;
       const params = registry.map((g) => 'game=' + encodeURIComponent(g.key)).join('&');
+      let painted = false;
+      if (staticSnapshot) {
+        renderFeed(staticSnapshot);
+        painted = true;
+        const hint0 = document.getElementById('refresh-hint');
+        hint0.textContent = '🗄 GitHub 快照秒开 · 正在取最新';
+        hint0.classList.add('text-amber-300');
+      }
       try {
-        const res = await fetch(apiBase + '/api/news?' + params + '&limit=15');
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(apiBase + '/api/news?' + params + '&limit=15', { signal: ctrl.signal });
+        clearTimeout(timer);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         renderFeed(data);
         document.getElementById('refresh-hint').classList.remove('text-amber-300');
+        nextRefreshAt = Date.now() + REFRESH_MS;
       } catch (err) {
-        if (staticSnapshot) {
+        if (!painted && staticSnapshot) {
           renderFeed(staticSnapshot);
           const hint = document.getElementById('refresh-hint');
           hint.textContent = '🗄 静态快照 · 每 3 小时更新';
           hint.classList.add('text-amber-300');
-          nextRefreshAt = Date.now() + REFRESH_MS;
-        } else if (!silent) {
+        } else if (!painted && !silent) {
           document.getElementById('feed').innerHTML = '';
           document.getElementById('feed-error').classList.remove('hidden');
         }
+        nextRefreshAt = Date.now() + REFRESH_MS;
       } finally {
         btn.disabled = false;
       }
