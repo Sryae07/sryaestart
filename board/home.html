@@ -166,9 +166,9 @@
 
   <script>
     (function () {
-      const isPages = location.hostname.endsWith('github.io');
-      const localBase = 'http://127.0.0.1:8000';
-      const dashUrl = isPages ? 'dashboard.html' : '/dashboard';
+      const isPages = true;
+      const localBase = 'https://dash.sryae07.dpdns.org';
+      const dashUrl = 'index.html';
       const newsUrl = isPages ? 'news.html' : '/news';
       const checkinUrl = isPages ? 'checkin.html' : '/checkin';
       document.querySelectorAll('[data-dashboard]').forEach((a) => { a.href = dashUrl; });
@@ -178,12 +178,12 @@
       const img = new Image();
       img.onload = function () {
         document.body.style.backgroundImage =
-          'linear-gradient(rgba(5,7,15,.78), rgba(5,7,15,.78)), url("/api/background?t=' + Date.now() + '")';
+          'linear-gradient(rgba(5,7,15,.78), rgba(5,7,15,.78)), url("https://dash.sryae07.dpdns.org/api/background?t=' + Date.now() + '")';
         document.body.style.backgroundSize = 'cover';
         document.body.style.backgroundPosition = 'center';
         document.body.style.backgroundAttachment = window.innerWidth >= 640 ? 'fixed' : 'scroll';
       };
-      img.src = '/api/background';
+      img.src = 'https://dash.sryae07.dpdns.org/api/background';
 
       const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
         { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
