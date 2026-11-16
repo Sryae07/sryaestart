@@ -119,7 +119,11 @@
     var rows = [];
     acts.forEach(function (a) {
       var b = document.getElementById(a[2]);
-      if (on(b)) rows.push(row({ icon: a[0], label: a[1], click: clickOn(a[2]) }));
+      if (!b) return;
+      // 手机上 header 整块 display:none，用 on() 判断会把所有按钮误判为"不存在"，
+      // 所以这里只看按钮自身的 hidden 类（app.js 用 hidden 控制可用性/机主权限）。
+      var ok = !b.classList.contains("hidden");
+      if (ok) rows.push(row({ icon: a[0], label: a[1], click: clickOn(a[2]) }));
     });
     if (rows.length) { body.appendChild(wrap); rows.forEach(function (r) { body.appendChild(r); }); any = true; }
     if (!any && page === "home") body.appendChild(row({ icon: "🚀", label: "进入启动器", href: "index.html", primary: true }));
