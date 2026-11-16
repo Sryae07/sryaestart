@@ -546,7 +546,8 @@
 
       img.onload = function () { finish(true); };
       img.onerror = function () { finish(false); };
-      img.src = base + "/assets/icon-192.png?t=" + Date.now();
+      /* 探针只要一张极小的图：隧道只有约 15KB/s，拿 44KB 的图标当探针等于每次多等 3 秒 */
+    img.src = base + "/assets/icon-96.webp?t=" + Date.now();
     });
   }
 
