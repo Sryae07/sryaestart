@@ -1783,7 +1783,13 @@ async function waitRunningGame(game, maxMs, onTick) {
     if (onTick) onTick(Math.round((Date.now() - t0) / 1000));
     try {
       const r = await api('/api/running', { timeoutMs: 15000 });
-      if (r && r.games && r.games[game]) return true;
+      if (r && r.games && r.games[game]) {
+        // 再确认一次：进程起来又立刻消失 = 启动即崩溃（客户端参数/依赖不对时就是这样）
+        await new Promise((ok) => setTimeout(ok, 2500));
+        const again = await api('/api/running', { timeoutMs: 15000 });
+        if (again && again.games && !again.games[game]) return 'gone';
+        return true;
+      }
     } catch (e) { /* 隧道抖一下不算失败，继续等 */ }
   }
   return false;
@@ -1821,9 +1827,12 @@ async function launchGame(btn) {
       btn.textContent = `等待游戏… ${sec}s`;
     });
     const secs = Math.round((Date.now() - t0) / 1000);
-    if (ok) {
+    if (ok === true) {
       toast(`🚀 ${label} 已启动（${secs} 秒）`);
       if (stopBtn) stopBtn.classList.remove('hidden');
+    } else if (ok === 'gone') {
+      // 进程起来过又没了：几乎都是客户端自己崩了，不是「没启动」
+      toast(`⚠️ ${label} 启动后立刻退出了（${secs} 秒）：进程出现过又消失，通常是客户端崩溃或需要更新，请到电脑上看一眼`, false);
     } else {
       // 明确说清「指令发了但没见到进程」，别让用户以为是没点动
       toast(`⚠️ ${label}：启动指令已经发出，但 ${secs} 秒内没检测到进程。首次启动会比较慢，请到电脑上看一眼；一直没反应的话可能是安装路径不对或需要管理员权限。`, false);
