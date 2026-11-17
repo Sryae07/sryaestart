@@ -1069,7 +1069,9 @@ function startTimers(data) {
   timers = [];
   for (const key of Object.keys(data.games || {})) {
     const game = data.games[key];
-    if (!game || game.stamina.full || !game.stamina.full_at) continue;
+    if (!game) continue;
+    const st = game.stamina || {};
+    if (st.full || !st.full_at) continue;
     const fullAt = new Date(game.stamina.full_at);
     const el = $(`#cd-${key}`);
     if (!el) continue;
