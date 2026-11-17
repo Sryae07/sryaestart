@@ -1772,6 +1772,21 @@ async function syncGame(btn) {
   }
 }
 
+/* 轮询「进程到底起来没有」：后端立刻返回启动指令，真实结果靠这里确认。
+   提权任务 → 游戏进程出现通常要 5-15 秒（Unity/UE 更久），所以最多等 60 秒。 */
+async function waitRunningGame(game, maxMs, onTick) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    await new Promise((r) => setTimeout(r, 2000));
+    if (onTick) onTick(Math.round((Date.now() - t0) / 1000));
+    try {
+      const r = await api('/api/running', { timeoutMs: 15000 });
+      if (r && r.games && r.games[game]) return true;
+    } catch (e) { /* 隧道抖一下不算失败，继续等 */ }
+  }
+  return false;
+}
+
 async function launchGame(btn) {
   if (btn.disabled) return;
   const game = btn.dataset.game;
@@ -1787,14 +1802,33 @@ async function launchGame(btn) {
   }, 500);
   try {
     const res = await api(`/api/launch/${game}`, { method: 'POST', timeoutMs: 45000 });
-    if (res && res.already) toast(`👌 ${res.message || label + '已经在运行了'}`);
-    else if (res && res.started === true) toast(`🚀 ${res.message || label + '已启动'}`);
-    else if (res && res.started === false) toast(`⚠️ ${res.message}`, false);
-    else toast(`🚀 ${(res && res.message) || '启动指令已发出'}`);
-    if (stopBtn) stopBtn.classList.remove('hidden');
+    if (res && res.already) {
+      toast(`👌 ${res.message || label + '已经在运行了'}`);
+      if (stopBtn) stopBtn.classList.remove('hidden');
+      return;
+    }
+    if (res && res.started === true) {
+      toast(`🚀 ${res.message || label + '已启动'}`);
+      if (stopBtn) stopBtn.classList.remove('hidden');
+      return;
+    }
+    // 指令已发出，转到「等进程出现」
+    clearInterval(tick);
+    btn.textContent = '等待游戏… 0s';
+    const ok = await waitRunningGame(game, 60000, (sec) => {
+      btn.textContent = `等待游戏… ${sec}s`;
+    });
+    const secs = Math.round((Date.now() - t0) / 1000);
+    if (ok) {
+      toast(`🚀 ${label} 已启动（${secs} 秒）`);
+      if (stopBtn) stopBtn.classList.remove('hidden');
+    } else {
+      // 明确说清「指令发了但没见到进程」，别让用户以为是没点动
+      toast(`⚠️ ${label}：启动指令已经发出，但 ${secs} 秒内没检测到进程。首次启动会比较慢，请到电脑上看一眼；一直没反应的话可能是安装路径不对或需要管理员权限。`, false);
+    }
   } catch (err) {
     // 网络超时 ≠ 没启动：指令可能已经到电脑了，别让用户以为失败
-    if (err.isNetwork) toast(`⚠️ ${label}：网络没等到回复，游戏可能已经在电脑上启动了（已启动不会重复打开），稍等一下再看看`, false);
+    if (err.isNetwork) toast(`⚠️ ${label}：网络没等到回复，游戏可能已经在电脑上启动了（已启动不会重复打开），稍等一下点「🔄 刷新」看看`, false);
     else toast(`❌ ${label}启动失败：${err.message}`, false);
   } finally {
     clearInterval(tick);
@@ -1815,7 +1849,12 @@ async function stopGame(btn) {
     else toast((res && res.message) || `${label}没有在运行`, false);
     if (res && !res.running) btn.classList.add('hidden');
   } catch (err) {
-    toast(`关闭失败：${err.message}`, false);
+    const msg = String((err && err.message) || '');
+    if (msg.includes('拒绝访问') || msg.includes('Access is denied')) {
+      toast(`${label} 以管理员权限运行，普通权限关不掉：请在电脑上双击 setup-launch-task.bat 完成一次性提权配置后重试`, false);
+    } else {
+      toast(`❌ 关闭 ${label} 失败：${msg}`, false);
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = '⏹ 关闭游戏';
