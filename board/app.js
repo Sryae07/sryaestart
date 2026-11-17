@@ -1832,7 +1832,7 @@ async function launchGame(btn) {
       if (stopBtn) stopBtn.classList.remove('hidden');
     } else if (ok === 'gone') {
       // 进程起来过又没了：几乎都是客户端自己崩了，不是「没启动」
-      toast(`⚠️ ${label} 启动后立刻退出了（${secs} 秒）：进程出现过又消失，通常是客户端崩溃或需要更新，请到电脑上看一眼`, false);
+      toast(`⚠️ ${label} 启动后崩溃退出（${secs} 秒）——进程起来过又没了，是客户端自己崩了。请在电脑上用该游戏的官方启动器点「修复」检查文件完整性（或更新）后再试`, false);
     } else {
       // 明确说清「指令发了但没见到进程」，别让用户以为是没点动
       toast(`⚠️ ${label}：启动指令已经发出，但 ${secs} 秒内没检测到进程。首次启动会比较慢，请到电脑上看一眼；一直没反应的话可能是安装路径不对或需要管理员权限。`, false);
